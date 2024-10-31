@@ -1,8 +1,7 @@
 ---
 title: "第一次作业你的报告题目"
-CJKmainfont: Songti SC
-author: "your name"
-date: "`r Sys.Date()`"
+author: "蔡亚东"
+date: "2024-10-29"
 output:
   pdf_document:
     latex_engine: xelatex
@@ -17,9 +16,11 @@ output:
     theme: cosmo
     toc: yes
 ---
+
 ```{r setup, include = FALSE,echo = FALSE}
 knitr::opts_chunk$set(echo = FALSE,error = FALSE, warning = FALSE, message = FALSE,
                       out.width = "100%", split = FALSE, fig.align = "center")
+
 #load library
 library(tidyverse)
 library(kableExtra)
@@ -28,16 +29,10 @@ library(scales)
 library(plotly)
 library(patchwork)
 library(ggrepel)
+library(dplyr)
+library(webshot)
+
 ```
-
-# 你的主要发现
-
-1. 发现1
-
-1. 发现2
-  
-1. 发现3
-    
 
 # 数据介绍
 
@@ -54,7 +49,9 @@ library(ggrepel)
 ```{r}
 # 载入数据和预处理
 
-lj<- read_csv("/Users/jameschen/Documents/02_Teaching/12_quantitative_thinking_R/data/2023-09-12_cleaned.csv")
+file_path1 <- "C:/Users/caial/Desktop/R_Store/作业_陈文波 商务统计/2023-09-12_cleaned.csv"
+lj <- read_csv(file_path1)
+
 # EDA ---------------------------------------------------------------------
 
 ## 如下语句可以解决画图中的中文显示问题，当然你可以用showtext包来解决
@@ -89,66 +86,297 @@ summary(lj)
 可以看到：
 
 - 直观结论1
-
+  lj这个数据表里，有3000条数据，18个变量。包含小区名称，小区位置，房屋总价，房屋每平方的价格，几个卧室，几个厅，建筑面积，主要朝向，次要朝向，
+  装修状况，楼栋总层数，房屋楼层，房屋风格，关注人数，是否靠近地铁，是否满2年，是否有钥匙，是否有VR
+ 
 - 直观结论2
-
+  字符型数据：小区名称，小区位置，主要朝向，次要朝向，装修状况，房屋楼层，房屋风格，长度都为3000
+  逻辑型数据：是否靠近地铁，是否满2年，是否有钥匙，是否有VR
+  数值类数据：房屋总价，房屋每平方的价格，几个卧室，几个厅，建筑面积，楼栋总层数，关注人数
+  数值类数据分别展示了最小值，1/4分位数，中位数，平均值，3/4分位数，最大值
+  
 - ...
 
 # 探索性分析
 
 ## 变量1的数值描述与图形
 
+# 变量1：房屋每平米的价格 的数值描述
+
+```{r echo=TRUE}
+#最小值和最大值
+range(lj$price_sqm)
+#平均数
+mean(lj$price_sqm)
+#中位数
+median(lj$price_sqm)
+#四分位距
+IQR(lj$price_sqm) #quantile(lj$price_sqm,0.75)-quantile(lj$price_sqm,0.25)
+#众数
+mad(lj$price_sqm)
+#方差
+var(lj$price_sqm)
+#标准差
+sd(lj$price_sqm)
+#峰度和偏度
+e1071::skewness(lj$price_sqm)
+e1071::kurtosis(lj$price_sqm)
+```
+
+# 变量1：房屋每平米的价格 的图形
+
+```{r echo=FALSE}
+#直方图
+lj_clean <- lj %>% 
+  filter(!is.infinite(lj$price_sqm), !is.na(lj$price_sqm))
+
+ggplot(lj_clean, aes(x = price_sqm)) +
+  geom_histogram(binwidth = 1000) +  # 选择合适的 bin 宽度
+  labs(title = "Distribution of Price per Square Meter",
+       x = "Price per Square Meter",
+       y = "Count")
+
+#箱线图
+  ggplot(lj_clean, aes(price_sqm)) +
+  geom_boxplot() +
+  geom_vline(xintercept = median(lj$price_sqm), color = "red", linewidth = 1) 
+```
+
 发现：
 
 - 发现1
-
+  lj数据中“每平米价格"，服从于 近似的正太分布（μ = 15148.49，sd = 6323.175)，右偏，偏度为1.079464
+  中位数为14404，小于平均数，意味着存在着部分高价格，拉高了整体平均水平
+ 
 - 发现2
+  箱线图右端存在部分异常值，已经超出 Q3 + 1.5 * IQR
 
 ## 变量2的数值描述与图形
 
+# 变量2：bedrooms的数值描述与图形
+
+```{r echo=TRUE}
+#最小值和最大值
+range(lj$bedrooms)
+#平均数
+mean(lj$bedrooms)
+#中位数
+median(lj$bedrooms)
+#四分位距
+IQR(lj$bedrooms) #quantile(lj$price_sqm,0.75)-quantile(lj$price_sqm,0.25)
+#众数
+mad(lj$bedrooms)
+#方差
+var(lj$bedrooms)
+#标准差
+sd(lj$bedrooms)
+#峰度和偏度
+e1071::skewness(lj$bedrooms)
+e1071::kurtosis(lj$bedrooms)
+```
+
+```{r echo=FALSE}
+lj_clean2 <- lj %>%
+  filter(!is.na(bedrooms))
+
+ggplot(lj_clean2, aes(x = bedrooms)) +
+  geom_histogram(binwidth = 1) +  # 选择合适的 bin 宽度
+  labs(title = "Distribution of bedrooms",
+       x = "bedrooms",
+       y = "Count")
+```
+
+```{r echo=FALSE}
+# 计算每个卧室数量的频数和比例
+bedroom_counts <- lj_clean2 %>%
+  count(bedrooms) %>%
+  mutate(prop = n / sum(n),  # 计算比例
+         pct_label = scales::percent(prop, accuracy = 1))  # 将比例转换为百分比字符串
+
+# 绘制饼图
+ggplot(bedroom_counts, aes(x = "", y = prop, fill = factor(bedrooms))) +
+  geom_bar(stat = "identity", width = 1) +  # 使用 stat = "identity" 来绘制实际的频数
+  geom_text(aes(label = pct_label), position = position_stack(vjust = 0.5)) +  # 添加百分比标签
+  coord_polar("y", start = 0) +  # 将坐标系转换为极坐标系以生成饼图
+  labs(title = "Distribution of Bedrooms",
+       x = NULL,  # 饼图中不需要 x 轴标签
+       y = NULL,  # 饼图中不需要 y 轴标签
+       fill = "Bedrooms") +
+  theme_minimal() +
+  theme(axis.title = element_blank(),  # 移除轴标题
+        axis.text = element_blank(),   # 移除轴文本
+        axis.ticks = element_blank(),  # 移除轴刻度
+        panel.grid = element_blank())  # 移除网格线
+```
+
 发现：
 
 - 发现1
+  人们更钟情于购买3个卧室的房子，占比为56%。其次是2个卧室的房子，占比31%
 
 - 发现2
+  同时也有少部分房屋存在多间卧室，最多的是7间
 
 ## 变量...的数值描述与图形
 
+# property_region 的词条频次图
+
+```{r echo=FALSE}
+
+library(wordcloud2)
+# 计算 property_region 的频次
+region_counts <- lj %>%
+  count(property_region, name = "freq") %>%
+  arrange(desc(freq))  # 按频次降序排列
+
+# 生成圆形词云
+wordcloud2(data = region_counts, 
+           size = 0.5,  # 字体大小
+           shape = "circle",  # 圆形词云
+           minRotation = -pi/4,  # 最小旋转角度
+           maxRotation = pi/4,  # 最大旋转角度
+           rotateRatio = 0.1,  # 旋转比例
+           minSize = 4,  # 最小字体大小
+           color = "random-dark",  # 随机深色
+           backgroundColor = "white")  # 背景颜色
+
+```
+
 发现：
 
 - 发现1
-
+  白沙洲的房子供应最多，其次是盘龙城，四新，光谷东等。
+  
 - 发现2
+  供应房子多的地方大多都位于郊区，意味着市区土地有限，人口朝郊区外扩
 
-## 探索问题1
+## 探索问题1：面积大的房子，每平米的价格更低还是更高？
 
-发现：
+```{r echo=FALSE}
+# 检查并处理缺失值
+lj2 <- lj %>%
+  filter(!is.na(price_sqm), !is.na(building_area))
+
+# 去除异常值（面积 > 200 m2)绘制散点图
+lj3 <- lj2 %>%
+  filter(building_area <= 220 & building_area > 40)
+
+ggplot(lj3, aes(x = building_area, y = price_sqm)) +
+  geom_point(alpha = 0.5) +  # 散点图
+  geom_smooth(method = "lm", se = FALSE, color = "red") + # 添加线性回归线
+  labs(title = "Building Area vs. Price per Square Meter",
+       x = "Building Area (sqm)",
+       y = "Price per Square Meter (CNY/sqm)") +
+  theme_minimal()
+
+# 按房间数量分面
+ggplot(lj3, aes(x = building_area, y = price_sqm)) +
+  geom_point(alpha = 0.5) +  
+  geom_smooth(method = "lm", se = FALSE, color = "red") + 
+    facet_wrap(~ bedrooms, ncol = 3)
+  labs(title = "Building Area vs. Price per Square Meter，facet by bedrooms",
+       x = "Building Area (sqm)",
+       y = "Price per Square Meter (CNY/sqm)") +
+  theme_minimal()
+  
+```
+
+发现：总体面积大的房子，每平米价格更高。房间越多，越明显。
 
 - 发现1
+  总体上，面积大的房子，每平米价格更高
 
 - 发现2
+  1，2，3室的房子，面积对每平米价格的影响不大。 4，5室的房子随着面积越大，每平米价格更高。6，7室的样本少于30，无法得出结论
 
-## 探索问题2
+## 探索问题2：楼层高低对每平米价格的影响？
 
-发现：
+```{r echo=FALSE}
+lj_1 <- lj %>%
+  filter(!is.na(property_height), !is.na(price_sqm))
+
+ggplot(lj_1, aes(x = property_height, y = price_sqm)) +
+  geom_boxplot() +  # 箱线图
+  labs(title = "Price per Square Meter by Floor",
+       x = "Floor",
+       y = "Price per Square Meter (CNY/sqm)") +
+  theme_minimal()
+
+```
+
+发现：目前3000个样本得出来的初步结论：楼层越低，房价越高。然而缺失“房屋是否带有电梯”这个因素，所以暂时对结论存疑。
+
+- 发现1 
+  低层的房子每平米价格更高
+
+- 发现2
+  中高成的房子每平米价格标准差更大，
+
+## 探索问题3：什么类型的房子（几室几厅）更受人关注？
+
+```{r echo=FALSE}
+# 检查并处理缺失值
+lj_clean1 <- lj %>%
+  filter(!is.na(bedrooms), !is.na(livingrooms), !is.na(followers))
+
+# 人们更关注几个卧室的房子
+ggplot(lj_clean1, aes(x = bedrooms, y = followers)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "steelblue") +  # 条形图显示平均关注人数
+  labs(title = "Average Followers Count by bedrooms",
+       x = "Bedrooms",
+       y = "Average Followers Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 人们更关注几个厅的房子
+ggplot(lj_clean1, aes(x = livingrooms, y = followers)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "steelblue") +  # 条形图显示平均关注人数
+  labs(title = "Average Followers Count by livingrooms",
+       x = "livingrooms",
+       y = "Average Followers Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# 结合卧室和厅来看关注者
+lj_clean2 <- lj_clean1 %>%
+  mutate(house_type = paste(bedrooms, "室", livingrooms, "厅"))
+
+# 绘制条形图来观察不同房型的关注人数
+ggplot(lj_clean2, aes(x = house_type, y = followers)) +
+  geom_bar(stat = "summary", fun = "mean", fill = "steelblue") +  # 条形图显示平均关注人数
+  labs(title = "Average Followers Count by House Type",
+       x = "House Type (Bedrooms and Living Rooms)",
+       y = "Average Attention Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+发现：人们更想要住越大的房子，有更多的卧室和厅。人人都向往富翁的生活
 
 - 发现1
-
+  多室多厅的房子更受人关注
+  
 - 发现2
-
-## 探索问题3
-
-发现：
-
-- 发现1
-
-- 发现2
+  7个卧室的房子，关注度相比1-6个卧室 陡然提示。可能存在其他因素影响
 
 ---
 
 # 发现总结
 
 用1-3段话总结你的发现。
+
+总体面积大的房子，每平米价格更高。房间越多，越明显。倾向于买房间越多的房子的人，家底厚实，越不在乎价格。
+
+楼层越低，房价越高。有可能会因为是否带有电梯这个因素影响这个结论。
+
+人们更想要住越大的房子，有更多的卧室和厅。人人都向往富翁的生活，但现实是2-3室的房源更多，占到80%左右。
+
+
+
+
+
+
 
 
 
